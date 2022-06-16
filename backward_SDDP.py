@@ -10,7 +10,7 @@ def backward(t,j,tempo_aux,stage,res,cen):
 
     from dateutil.relativedelta import relativedelta
 
-    PI = {};PIy = {};new_dict = np.array([]);PIs={};vsults = {};custos = {};alfa = {};gama={};ysults={};PIys = {};RHS={}
+    PI = {};PIy = {};new_dict = np.array([]);PIs={};vsults = {};custos = {};alfa = {};ysults={};PIys = {};
     for s in cen:
         ysults[s]={};
         prob = np.zeros(abert)
@@ -31,16 +31,14 @@ def backward(t,j,tempo_aux,stage,res,cen):
                         else:    
                             stage[j]['yp'][h,q+1].UB = cen[s][f'ysult{h}'][j-2-q]
                             stage[j]['yp'][h,q+1].LB = cen[s][f'ysult{h}'][j-2-q]
-
-                
             for h in reservatorios:
                     stage[j]['ctrv'][h].RHS = cen[s][f'vsult{h}'][j-2]
                 
 
             stage[j][f'm{j}'].update()
             stage[j][f'm{j}'].optimize()
-            # stage[j][f'm{j}'].write(f'SDDP_back{j}{i}_DRO.lp')
-            # stage[j][f'm{j}'].write(f'SDDP_back{j}{i}_DRO.sol')
+            # stage[j][f'm{j}'].write(f'SDDP_back_{j}{i}.lp')
+            # stage[j][f'm{j}'].write(f'SDDP_back_{j}{i}.sol')
             tempo_aux[j][s][1][i] = {}
             tempo_aux[j][s][1][i] = stage[j][f'm{j}'].runtime
             status = stage[j][f'm{j}'].status
@@ -54,15 +52,13 @@ def backward(t,j,tempo_aux,stage,res,cen):
             PIy[i] = np.array([stage[j]['yp'][h,q+1].RC for q in range(ordem) for h in hidros.index])
             custo = np.append(custo,np.array(stage[j][f'm{j}'].objVal))
         
-        PIs[s]={};custos[s]={};PIys[s]={};RHS[s]={}
+        PIs[s]={};custos[s]={};PIys[s]={};
         vsults[s] = np.array([cen[s][f'vsult{h}'][j-2] for h in reservatorios]) 
         ysults[s] = np.array([cen[s][f'ysult{h}'][j-2-q] if (j-2-q)>=0 else y_hist.loc[hidros.COMPATIBILIDADE_SPT.loc[h], y_hist.columns == t-relativedelta(months=+q+1)][0] for q in range(ordem) for h in hidros.index]) 
 
-        gama[s] = np.array([cen[s]['gama'][j-2]])
         for i in range(abert): 
             PIys[s][i] = PIy[i]
             PIs[s][i] = PI[i]
-            custos[s][i] = custo[i] 
-            RHS[s][i] = np.inner(vsults[s],PIs[s][i]) + sum(np.inner(ysults[s][q*len(hidros.index):(q+1)*len(hidros.index)],PIys[s][i][q*len(hidros.index):(q+1)*len(hidros.index)]) for q in range(ordem))
-
-    return PIs,vsults,custos,PIys,ysults,tempo_aux,gama,RHS
+            custos[s][i] = custo[i] - np.inner(vsults[s],PIs[s][i])- sum(np.inner(ysults[s][q*len(hidros.index):(q+1)*len(hidros.index)],PIys[s][i][q*len(hidros.index):(q+1)*len(hidros.index)]) for q in range(ordem))
+    # print(j,PIys)
+    return PIs,vsults,custos,PIys,ysults,tempo_aux
